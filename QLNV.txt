@@ -1,0 +1,412 @@
+CREATE TABLE tblChucVu (
+    MaCV    VARCHAR2(10) PRIMARY KEY,
+    TenCV   VARCHAR2(100)
+);
+
+CREATE TABLE tblNhanVien (
+    MaNV        VARCHAR2(10) PRIMARY KEY,
+    MaCV        VARCHAR2(10),
+    TenNV       VARCHAR2(100),
+    NgaySinh    DATE,
+    LuongCanBan NUMBER(12,2),
+    NgayCong    NUMBER(5),
+    PhuCap      NUMBER(12,2),
+
+    CONSTRAINT fk_nv_cv
+        FOREIGN KEY (MaCV)
+        REFERENCES tblChucVu(MaCV)
+);
+
+INSERT INTO tblChucVu VALUES ('CV01', 'Giam doc');
+INSERT INTO tblChucVu VALUES ('CV02', 'Pho giam doc');
+INSERT INTO tblChucVu VALUES ('CV03', 'Truong phong');
+INSERT INTO tblChucVu VALUES ('CV04', 'Nhan vien');
+
+INSERT INTO tblNhanVien 
+VALUES ('NV01','CV01','Nguyen Van A',
+        TO_DATE('15/06/1985','DD/MM/YYYY'),
+        1500000, 26, 5000000);
+
+INSERT INTO tblNhanVien 
+VALUES ('NV02','CV03','Tran Thi B',
+        TO_DATE('20/08/1990','DD/MM/YYYY'),
+        1500000, 25, 1556009);
+
+INSERT INTO tblNhanVien 
+VALUES ('NV03','CV04','Le Van C',
+        TO_DATE('10/01/1995','DD/MM/YYYY'),
+        700000, 28, 1456000);
+
+SELECT * FROM tblChucVu;
+SELECT * FROM tblNhanVien;
+COMMIT;
+
+CREATE OR REPLACE PROCEDURE SP_Them_Nhan_Vien (
+    p_MaNV        IN VARCHAR2,
+    p_MaCV        IN VARCHAR2,
+    p_TenNV       IN VARCHAR2,
+    p_NgaySinh    IN DATE,
+    p_LuongCanBan IN NUMBER,
+    p_NgayCong    IN NUMBER,
+    p_PhuCap      IN NUMBER
+)
+AS
+    v_dem NUMBER := 0;   
+BEGIN
+
+   
+    SELECT COUNT(*) INTO v_dem
+    FROM tblChucVu
+    WHERE MaCV = p_MaCV;
+
+    IF v_dem = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Ma chuc vu khong ton tai!');
+    
+    ELSE
+        INSERT INTO tblNhanVien
+        (MaNV, MaCV, TenNV, NgaySinh, LuongCanBan, NgayCong, PhuCap)
+        VALUES
+        (p_MaNV, p_MaCV, p_TenNV, p_NgaySinh, 
+         p_LuongCanBan, p_NgayCong, p_PhuCap);
+
+        DBMS_OUTPUT.PUT_LINE('Them nhan vien thanh cong!');
+
+        COMMIT;
+    END IF;
+
+END SP_Them_Nhan_Vien;
+/
+
+BEGIN
+    SP_Them_Nhan_Vien(
+        'NV04',
+        'CV02',
+        'Pham Van D',
+        TO_DATE('12/03/1992','DD/MM/YYYY'),
+        9000000,
+        29,
+        1500000
+    );
+END;
+/
+
+BEGIN
+    SP_Them_Nhan_Vien(
+        'NV05',
+        'CV99',
+        'Hoang Van E',
+        TO_DATE('01/01/1993','DD/MM/YYYY'),
+        8000000,
+        24,
+        1000000
+    );
+END;
+/
+
+CREATE OR REPLACE PROCEDURE SP_CapNhat_Nhan_Vien (
+    p_MaNV        IN VARCHAR2,
+    p_MaCV        IN VARCHAR2,
+    p_TenNV       IN VARCHAR2,
+    p_NgaySinh    IN DATE,
+    p_LuongCanBan IN NUMBER,
+    p_NgayCong    IN NUMBER,
+    p_PhuCap      IN NUMBER
+)
+AS
+    v_dem NUMBER := 0;   -- Kiểm tra MaCV tồn tại
+BEGIN
+
+    -- Kiểm tra MaCV có tồn tại không
+    SELECT COUNT(*) INTO v_dem
+    FROM tblChucVu
+    WHERE MaCV = p_MaCV;
+
+    IF v_dem = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Ma chuc vu khong ton tai!');
+    
+    ELSE
+        UPDATE tblNhanVien
+        SET MaCV        = p_MaCV,
+            TenNV       = p_TenNV,
+            NgaySinh    = p_NgaySinh,
+            LuongCanBan = p_LuongCanBan,
+            NgayCong    = p_NgayCong,
+            PhuCap      = p_PhuCap
+        WHERE MaNV = p_MaNV;
+
+        IF SQL%ROWCOUNT = 0 THEN
+            DBMS_OUTPUT.PUT_LINE('Ma nhan vien khong ton tai!');
+        ELSE
+            DBMS_OUTPUT.PUT_LINE('Cap nhat nhan vien thanh cong!');
+            COMMIT;
+        END IF;
+
+    END IF;
+
+END SP_CapNhat_Nhan_Vien;
+/
+
+BEGIN
+    SP_CapNhat_Nhan_Vien(
+        'NV01',
+        'CV03',
+        'Nguyen Van A (da cap nhap ) ',
+        TO_DATE('15/06/1985','DD/MM/YYYY'),
+        16000000,
+        27,
+        6000000
+    );
+END;
+/
+
+BEGIN
+    SP_CapNhat_Nhan_Vien(
+        'NV01',
+        'CV99',
+        'Nguyen Van A',
+        TO_DATE('15/06/1985','DD/MM/YYYY'),
+        16000000,
+        27,
+        6000000
+    );
+END;
+/
+BEGIN
+    SP_CapNhat_Nhan_Vien(
+        'NV99',
+        'CV01',
+        'Test',
+        TO_DATE('01/01/1990','DD/MM/YYYY'),
+        5000000,
+        20,
+        500000
+    );
+END;
+/
+
+CREATE OR REPLACE PROCEDURE SP_LuongLN
+AS
+    v_luong NUMBER(15,2);
+BEGIN
+
+    FOR nv IN (SELECT MaNV, TenNV, LuongCanBan, NgayCong, PhuCap 
+               FROM tblNhanVien)
+    LOOP
+
+        v_luong := nv.LuongCanBan * nv.NgayCong + nv.PhuCap;
+
+        DBMS_OUTPUT.PUT_LINE(
+            'MaNV: ' || nv.MaNV ||
+            ' | TenNV: ' || nv.TenNV ||
+            ' | Luong: ' || v_luong
+        );
+
+    END LOOP;
+END SP_LuongLN;
+/
+BEGIN
+    SP_LuongLN;
+END;
+/
+
+
+CREATE OR REPLACE PROCEDURE sp_them_nhan_vien1 (
+    p_MaNV      IN VARCHAR2,
+    p_MaCV      IN VARCHAR2,
+    p_TenNV     IN VARCHAR2,
+    p_NgaySinh  IN DATE,
+    p_LuongCB   IN NUMBER,
+    p_NgayCong  IN NUMBER,
+    p_PhuCap    IN NUMBER,
+    p_KetQua    OUT NUMBER
+)
+AS
+    v_count NUMBER;
+BEGIN
+ 
+    SELECT COUNT(*) INTO v_count
+    FROM tblChucVu
+    WHERE MaCV = p_MaCV;
+
+    IF v_count = 0 THEN
+        p_KetQua := 0; 
+    ELSE
+        INSERT INTO tblNhanVien
+        VALUES (p_MaNV, p_MaCV, p_TenNV, p_NgaySinh,
+                p_LuongCB, p_NgayCong, p_PhuCap);
+
+        p_KetQua := 1; 
+    END IF;
+END;
+/
+
+DECLARE
+    v_KQ NUMBER;
+BEGIN
+    sp_them_nhan_vien1(
+        'NV10',
+        'CV99',  
+        'Nguyen Van A',
+        DATE '1995-05-10',
+        5000000,
+        26,
+        500000,
+        v_KQ
+    );
+
+    DBMS_OUTPUT.PUT_LINE('Ket qua: ' || v_KQ);
+END;
+/
+select * from tblNhanVien
+DECLARE
+    v_KQ NUMBER;
+BEGIN
+    sp_them_nhan_vien1(
+        'NV12',
+        'CV01',
+        'Le Thi E',
+        DATE '1995-08-20',
+        6500000,
+        27,
+        400000,
+        v_KQ
+    );
+
+    DBMS_OUTPUT.PUT_LINE('Ket qua: ' || v_KQ);
+END;
+/   
+
+CREATE OR REPLACE PROCEDURE sp_them_nhan_vien2 (
+    p_MaNV      IN VARCHAR2,
+    p_MaCV      IN VARCHAR2,
+    p_TenNV     IN VARCHAR2,
+    p_NgaySinh  IN DATE,
+    p_LuongCB   IN NUMBER,
+    p_NgayCong  IN NUMBER,
+    p_PhuCap    IN NUMBER,
+    p_KetQua    OUT NUMBER
+)
+AS
+    v_countNV NUMBER;
+    v_countCV NUMBER;
+BEGIN
+   
+    SELECT COUNT(*) INTO v_countNV
+    FROM tblNhanVien
+    WHERE MaNV = p_MaNV;
+
+    IF v_countNV > 0 THEN
+        p_KetQua := 0; 
+        RETURN;
+    END IF;
+
+   
+    SELECT COUNT(*) INTO v_countCV
+    FROM tblChucVu
+    WHERE MaCV = p_MaCV;
+
+    IF v_countCV = 0 THEN
+        p_KetQua := 1; 
+        RETURN;
+    END IF;
+
+ 
+    INSERT INTO tblNhanVien
+    VALUES (p_MaNV, p_MaCV, p_TenNV, p_NgaySinh,
+            p_LuongCB, p_NgayCong, p_PhuCap);
+
+    p_KetQua := 2; 
+END;
+/
+
+DECLARE
+    v_KQ NUMBER;
+BEGIN
+    sp_them_nhan_vien2(
+        'NV01',
+        'CV01',
+        'Nguyen Van A',
+        DATE '1995-05-10',
+        5000000,
+        26,
+        500000,
+        v_KQ
+    );
+
+    DBMS_OUTPUT.PUT_LINE('Ket qua: ' || v_KQ);
+END;
+/
+
+DECLARE
+    v_KQ NUMBER;
+BEGIN
+    sp_them_nhan_vien2(
+        'NV100',       
+        'CV99',     
+        'Tran Thi B',
+        DATE '1998-08-20',
+        6000000,
+        24,
+        400000,
+        v_KQ
+    );
+
+    DBMS_OUTPUT.PUT_LINE('Ket qua: ' || v_KQ);
+END;
+/
+
+DECLARE
+    v_KQ NUMBER;
+BEGIN
+    sp_them_nhan_vien2(
+        'NV100',      
+        'CV01',        
+        'Tran Thi B',
+        DATE '1998-08-20',
+        6000000,
+        24,
+        400000,
+        v_KQ
+    );
+
+    DBMS_OUTPUT.PUT_LINE('Ket qua: ' || v_KQ);
+END;
+/
+
+CREATE OR REPLACE PROCEDURE sp_capnhat_ngaysinh (
+    p_MaNV     IN VARCHAR2,
+    p_NgaySinh IN DATE,
+    p_KetQua   OUT NUMBER
+)
+AS
+    v_count NUMBER;
+BEGIN
+   
+    SELECT COUNT(*) INTO v_count
+    FROM tblNhanVien
+    WHERE MaNV = p_MaNV;
+
+    IF v_count = 0 THEN
+        p_KetQua := 0;
+    ELSE
+        UPDATE tblNhanVien
+        SET NgaySinh = p_NgaySinh
+        WHERE MaNV = p_MaNV;
+
+        p_KetQua := 1; 
+    END IF;
+END;
+/
+
+DECLARE
+    v_KQ NUMBER;
+BEGIN
+    sp_capnhat_ngaysinh(
+        'NV01',
+        DATE '2000-01-01',
+        v_KQ
+    );
+
+    DBMS_OUTPUT.PUT_LINE('Ket qua: ' || v_KQ);
+END;
+/
